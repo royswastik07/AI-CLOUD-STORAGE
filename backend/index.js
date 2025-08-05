@@ -4,9 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const cors = require('cors');
 
 // --- App Initialization ---
 const app = express();
+app.use(cors());
 const PORT = 3001;
 
 // --- Server Configuration ---
