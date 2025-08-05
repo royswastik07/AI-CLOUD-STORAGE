@@ -1,5 +1,9 @@
-# .gitignore
+# Dependencies
+node_modules/
 
-node_modules
-ai-cloud-storage-b12345.json  
-uploads/
+# Secrets - Replace with your actual .json filename
+ai-cloud-storage-b12345.json
+
+# Build files
+dist
+.DS_Store
