@@ -12,13 +12,17 @@ const createTableQuery = `
   );
 `;
 
-// A self-invoking async function to run the query
+// --- NEW: Add the ALTER TABLE command ---
+const alterTableQuery = `
+  ALTER TABLE files ADD COLUMN IF NOT EXISTS ai_tags TEXT[];
+`;
+
 (async () => {
   try {
     await db.query(createTableQuery);
-    console.log("✅ Table 'files' created successfully or already exists.");
+    await db.query(alterTableQuery); // Run the new command
+    console.log("✅ Database tables configured successfully.");
   } catch (err) {
-    console.error("❌ Error creating table:", err);
+    console.error("❌ Error configuring database:", err);
   }
-  // The script will exit automatically after running.
 })();

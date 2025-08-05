@@ -1,0 +1,5 @@
+# .gitignore
+
+node_modules
+ai-cloud-storage-b12345.json  
+uploads/
