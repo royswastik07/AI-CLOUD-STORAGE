@@ -37,6 +37,8 @@ The application is composed of several independent services that communicate wit
 4.  **AI Worker (Node.js Process):** A separate background process that listens to the Job Queue. When a new job appears, it takes the file, sends it to the Google Vision API, and updates the database with the results.
 5.  **Database (PostgreSQL):** The central source of truth for all file metadata.
 
+
+---
 [User] -> [React Frontend] -> [Backend API] -> [Job Queue (Redis)]
 |                ^
 |                | (Picks up job)
