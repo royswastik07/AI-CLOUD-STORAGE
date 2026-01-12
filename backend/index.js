@@ -11,7 +11,7 @@ const { uploadToGCS, deleteFromGCS, getSignedUrl, BUCKET_NAME } = require('./sto
 // --- App Initialization ---
 const app = express();
 app.use(cors());
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // --- Server Configuration ---
 const uploadsDir = path.join(__dirname, 'uploads');
