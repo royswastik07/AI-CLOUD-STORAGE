@@ -7,16 +7,33 @@ const db = require('./db');
 const fs = require('fs');
 const os = require('os');
 
+// Parse Redis URL from environment or use localhost
+const getRedisConnection = () => {
+  if (process.env.REDIS_URL) {
+    const url = new URL(process.env.REDIS_URL);
+    return {
+      host: url.hostname,
+      port: parseInt(url.port) || 6379,
+      password: url.password || undefined,
+    };
+  }
+  return { host: 'localhost', port: 6379 };
+};
+
 // Initialize Google Cloud clients
-const client = new vision.ImageAnnotatorClient({
-  keyFilename: './ai-cloud-storage-b12345.json'
-});
+// Railway: Use GOOGLE_CREDENTIALS env var (JSON string)
+// Local: Use keyFilename
+const getGoogleCredentials = () => {
+  if (process.env.GOOGLE_CREDENTIALS) {
+    return { credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS) };
+  }
+  return { keyFilename: './ai-cloud-storage-b12345.json' };
+};
 
-const storage = new Storage({
-  keyFilename: './ai-cloud-storage-b12345.json'
-});
+const client = new vision.ImageAnnotatorClient(getGoogleCredentials());
+const storage = new Storage(getGoogleCredentials());
 
-const BUCKET_NAME = 'ai-cloud-storage-files';
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'ai-cloud-storage-files';
 
 console.log('🤖 AI Worker started. Waiting for jobs...');
 
@@ -30,7 +47,6 @@ const worker = new Worker('file-analysis', async (job) => {
 
     // Check if it's a GCS path (gs://bucket/file)
     if (filePath.startsWith('gs://')) {
-      // Download from GCS to temp file for Vision API
       const fileName = filePath.split('/').pop();
       tempFilePath = path.join(os.tmpdir(), fileName);
 
@@ -41,22 +57,20 @@ const worker = new Worker('file-analysis', async (job) => {
       imagePath = tempFilePath;
     }
 
-    // Use the Google Vision API to detect labels in the image
+    // Use the Google Vision API to detect labels
     const [result] = await client.labelDetection(imagePath);
     const labels = result.labelAnnotations;
     const ai_tags = labels.map(label => label.description);
 
     console.log(`🏷️  Tags for file ID ${fileId}:`, ai_tags);
 
-    // Update the database with the generated tags
-    const updateQuery = `
-      UPDATE files SET ai_tags = $1 WHERE id = $2;
-    `;
+    // Update the database
+    const updateQuery = `UPDATE files SET ai_tags = $1 WHERE id = $2;`;
     await db.query(updateQuery, [ai_tags, fileId]);
 
     console.log(`✅ Successfully updated DB for file ID: ${fileId}`);
 
-    // Clean up temp file if we downloaded from GCS
+    // Clean up temp file
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
@@ -64,10 +78,7 @@ const worker = new Worker('file-analysis', async (job) => {
     console.error(`❌ Failed to process file ID ${fileId}:`, err);
   }
 }, {
-  connection: {
-    host: 'localhost',
-    port: 6379
-  }
+  connection: getRedisConnection()
 });
 
 worker.on('failed', (job, err) => {

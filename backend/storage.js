@@ -2,20 +2,24 @@
 const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 
-// Initialize Google Cloud Storage with service account credentials
-const storage = new Storage({
-    keyFilename: path.join(__dirname, 'ai-cloud-storage-b12345.json')
-});
+// Initialize Google Cloud Storage
+// Railway: Use GOOGLE_CREDENTIALS env var (JSON string)
+// Local: Use keyFilename
+const getGoogleCredentials = () => {
+    if (process.env.GOOGLE_CREDENTIALS) {
+        return { credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS) };
+    }
+    return { keyFilename: path.join(__dirname, 'ai-cloud-storage-b12345.json') };
+};
 
-// Your bucket name
-const BUCKET_NAME = 'ai-cloud-storage-files';
+const storage = new Storage(getGoogleCredentials());
+
+// Bucket name from env or default
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'ai-cloud-storage-files';
 const bucket = storage.bucket(BUCKET_NAME);
 
 /**
  * Upload a file to Google Cloud Storage
- * @param {string} filePath - Local path to the file
- * @param {string} destFileName - Destination filename in GCS
- * @returns {Promise<string>} - Public URL of the uploaded file
  */
 async function uploadToGCS(filePath, destFileName) {
     await bucket.upload(filePath, {
@@ -25,22 +29,19 @@ async function uploadToGCS(filePath, destFileName) {
         },
     });
 
-    // Generate a signed URL that expires in 7 days (for private buckets)
+    // Generate a signed URL (7 days)
     const file = bucket.file(destFileName);
     const [signedUrl] = await file.getSignedUrl({
         action: 'read',
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Return the public URL format
     const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${destFileName}`;
-
     return { publicUrl, signedUrl };
 }
 
 /**
  * Delete a file from Google Cloud Storage
- * @param {string} fileName - Name of the file in GCS
  */
 async function deleteFromGCS(fileName) {
     try {
@@ -53,9 +54,6 @@ async function deleteFromGCS(fileName) {
 
 /**
  * Generate a signed URL for accessing a file
- * @param {string} fileName - Name of the file in GCS
- * @param {number} expiresInMs - Expiration time in milliseconds
- * @returns {Promise<string>} - Signed URL
  */
 async function getSignedUrl(fileName, expiresInMs = 3600000) {
     const [signedUrl] = await bucket.file(fileName).getSignedUrl({

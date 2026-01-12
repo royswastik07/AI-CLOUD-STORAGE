@@ -1,13 +1,21 @@
 // backend/queue.js
 const { Queue } = require('bullmq');
 
-// Create a new queue instance connected to our Redis server.
-// The name 'file-analysis' is how we'll identify this specific queue.
+// Parse Redis URL from environment or use localhost
+const getRedisConnection = () => {
+  if (process.env.REDIS_URL) {
+    const url = new URL(process.env.REDIS_URL);
+    return {
+      host: url.hostname,
+      port: parseInt(url.port) || 6379,
+      password: url.password || undefined,
+    };
+  }
+  return { host: 'localhost', port: 6379 };
+};
+
 const fileQueue = new Queue('file-analysis', {
-  connection: {
-    host: 'localhost',
-    port: 6379,
-  },
+  connection: getRedisConnection(),
 });
 
 module.exports = fileQueue;

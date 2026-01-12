@@ -1,0 +1,14 @@
+[build]
+  builder = "NIXPACKS"
+  buildCommand = "npm run build"
+
+[deploy]
+  startCommand = "npx serve -s dist -l 3000"
+  healthcheckPath = "/"
+  healthcheckTimeout = 100
+
+[[services]]
+  name = "frontend"
+
+[env]
+  PORT = "3000"
