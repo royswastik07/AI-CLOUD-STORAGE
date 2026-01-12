@@ -2,21 +2,21 @@
 const { Worker } = require('bullmq');
 const path = require('path');
 const vision = require('@google-cloud/vision');
+const { Storage } = require('@google-cloud/storage');
 const db = require('./db');
+const fs = require('fs');
+const os = require('os');
 
-// --- IMPORTANT: PASTE YOUR GOOGLE API KEY HERE ---
-process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = JSON.stringify({
-  "type": "service_account",
-  "private_key": "YOUR_PRIVATE_KEY", // You will get this from a JSON file, not just an API key. 
-  // For simplicity with an API key, we will adjust the client initialization.
-  // The API Key method is simpler to start.
-});
-
-// --- Simpler client initialization with just an API Key ---
+// Initialize Google Cloud clients
 const client = new vision.ImageAnnotatorClient({
-    keyFilename: './ai-cloud-storage-b12345.json' // <-- Use your actual filename here
+  keyFilename: './ai-cloud-storage-b12345.json'
 });
 
+const storage = new Storage({
+  keyFilename: './ai-cloud-storage-b12345.json'
+});
+
+const BUCKET_NAME = 'ai-cloud-storage-files';
 
 console.log('🤖 AI Worker started. Waiting for jobs...');
 
@@ -25,8 +25,24 @@ const worker = new Worker('file-analysis', async (job) => {
   console.log(`Processing file ID: ${fileId} at path: ${filePath}`);
 
   try {
+    let imagePath = filePath;
+    let tempFilePath = null;
+
+    // Check if it's a GCS path (gs://bucket/file)
+    if (filePath.startsWith('gs://')) {
+      // Download from GCS to temp file for Vision API
+      const fileName = filePath.split('/').pop();
+      tempFilePath = path.join(os.tmpdir(), fileName);
+
+      await storage.bucket(BUCKET_NAME).file(fileName).download({
+        destination: tempFilePath
+      });
+      console.log(`📥 Downloaded ${fileName} from GCS for analysis`);
+      imagePath = tempFilePath;
+    }
+
     // Use the Google Vision API to detect labels in the image
-    const [result] = await client.labelDetection(filePath);
+    const [result] = await client.labelDetection(imagePath);
     const labels = result.labelAnnotations;
     const ai_tags = labels.map(label => label.description);
 
@@ -39,9 +55,13 @@ const worker = new Worker('file-analysis', async (job) => {
     await db.query(updateQuery, [ai_tags, fileId]);
 
     console.log(`✅ Successfully updated DB for file ID: ${fileId}`);
+
+    // Clean up temp file if we downloaded from GCS
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
   } catch (err) {
     console.error(`❌ Failed to process file ID ${fileId}:`, err);
-    // You could add more robust error handling here, like moving the job to a 'failed' queue
   }
 }, {
   connection: {

@@ -12,15 +12,20 @@ const createTableQuery = `
   );
 `;
 
-// --- NEW: Add the ALTER TABLE command ---
+// --- NEW: Add the ALTER TABLE commands ---
 const alterTableQuery = `
   ALTER TABLE files ADD COLUMN IF NOT EXISTS ai_tags TEXT[];
+`;
+
+const addPublicUrlQuery = `
+  ALTER TABLE files ADD COLUMN IF NOT EXISTS public_url TEXT;
 `;
 
 (async () => {
   try {
     await db.query(createTableQuery);
-    await db.query(alterTableQuery); // Run the new command
+    await db.query(alterTableQuery);
+    await db.query(addPublicUrlQuery);
     console.log("✅ Database tables configured successfully.");
   } catch (err) {
     console.error("❌ Error configuring database:", err);
