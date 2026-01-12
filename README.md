@@ -1,111 +1,164 @@
 # AI-Powered Personal Cloud Storage
 
-A full-stack, intelligent cloud storage application that automatically analyzes and tags uploaded images using a scalable, asynchronous backend architecture.
+A full-stack, intelligent cloud storage application that automatically analyzes and tags uploaded images using Google Cloud Vision API and stores files in Google Cloud Storage.
 
 ---
 
 ## 🚀 Project Description
 
-This project is a complete, modern web application that provides a personal cloud storage solution with a unique AI-powered organization feature. Users can upload, download, and manage their files through a clean web interface. The backend is built with a sophisticated, decoupled architecture where file analysis tasks are handled by a separate background worker process, ensuring the user experience is fast and non-blocking.
+This project is a complete, modern web application that provides a personal cloud storage solution with AI-powered organization features. Users can upload, download, and manage their files through a sleek web interface with both gallery and table views. Files are stored in Google Cloud Storage, and images are automatically analyzed for content tags.
 
-This project demonstrates a practical understanding of:
--   **Full-Stack Development:** Building both a frontend (React) and a backend (Node.js/Express) that work together seamlessly.
--   **Asynchronous Job Processing:** Using a Redis-backed job queue (BullMQ) to handle long-running AI tasks without freezing the API. This is a critical pattern for building scalable, real-world applications.
--   **Database Management:** Integrating a PostgreSQL database to store and manage file metadata in a structured way.
--   **Cloud AI Integration:** Interacting with a third-party AI service (Google Cloud Vision API) to add intelligent features to an application.
--   **System Architecture Design:** Designing and implementing a multi-process system (API Server, AI Worker, Database, Queue).
+**Key Technical Highlights:**
+- **Full-Stack Development:** React frontend + Node.js/Express backend
+- **Cloud Storage:** Files stored in Google Cloud Storage with signed URLs
+- **Asynchronous Processing:** Redis-backed job queue (BullMQ) for non-blocking AI analysis
+- **AI Integration:** Google Cloud Vision API for automatic image tagging
+- **Modern UI:** Dark/Light themes, image gallery with lightbox, search by tags
 
 ---
 
 ## ✨ Features
 
--   **Secure File Upload:** Upload files through a user-friendly web interface.
--   **File Management:** List, download, and delete uploaded files.
--   **Automatic AI Tagging:** Images are automatically analyzed in the background to generate descriptive content tags (e.g., "Soccer player", "Stadium", "Eyewear").
--   **Asynchronous Processing:** The UI remains fast and responsive while the AI analysis happens behind the scenes.
--   **Persistent Metadata Storage:** All file information and AI tags are stored in a robust PostgreSQL database.
+### Core Features
+- ☁️ **Cloud File Storage** - Files stored securely in Google Cloud Storage
+- 📤 **File Upload** - Upload with real-time progress bar
+- 📥 **File Download** - Download via signed URLs
+- 🗑️ **File Delete** - Remove files from cloud and database
+
+### AI Features
+- 🏷️ **Automatic AI Tagging** - Images analyzed by Google Vision API
+- 🔍 **Search by Tags** - Filter files by name or AI-generated tags
+- 🎯 **Tag Suggestions** - Quick filter buttons for common tags
+
+### UI Features
+- 🖼️ **Image Gallery** - Visual grid view with hover effects
+- 📋 **Table View** - Detailed list with file metadata
+- 🔍 **Lightbox Preview** - Click images for full-size view with all tags
+- 🌙 **Dark/Light Theme** - Toggle between themes (persisted in localStorage)
+- 📊 **Upload Progress** - Real-time progress bar during uploads
 
 ---
 
 ## ⚙️ System Architecture
 
-The application is composed of several independent services that communicate with each other:
-
-1.  **Frontend (React App):** The user interface running in the browser. It communicates with the Backend API.
-2.  **Backend (Node.js API Server):** Handles user requests, serves file metadata, and adds new jobs to the Job Queue.
-3.  **Job Queue (Redis & BullMQ):** A message broker that holds tasks (like "analyze this image") waiting to be processed.
-4.  **AI Worker (Node.js Process):** A separate background process that listens to the Job Queue. When a new job appears, it takes the file, sends it to the Google Vision API, and updates the database with the results.
-5.  **Database (PostgreSQL):** The central source of truth for all file metadata.
-
-
----
-[User] -> [React Frontend] -> [Backend API] -> [Job Queue (Redis)]
-|                ^
-|                | (Picks up job)
-v                |
-[Database] <----- [AI Worker] -> [Google Vision API]
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         FRONTEND                                │
+│                    React + Vite (Port 5173)                     │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ HTTP
+┌───────────────────────────▼─────────────────────────────────────┐
+│                         BACKEND API                             │
+│                   Node.js/Express (Port 3001)                   │
+└──────┬────────────────────┬──────────────────────────┬──────────┘
+       │                    │                          │
+       ▼                    ▼                          ▼
+┌──────────────┐    ┌──────────────┐           ┌──────────────────┐
+│  PostgreSQL  │    │    Redis     │           │  Google Cloud    │
+│   (Metadata) │    │   (Queue)    │           │  Storage         │
+└──────────────┘    └──────┬───────┘           └──────────────────┘
+                           │
+                    ┌──────▼───────┐
+                    │  AI Worker   │
+                    │  (Separate   │──────► Google Vision API
+                    │   Process)   │
+                    └──────────────┘
+```
 
 ---
 
 ## 🚀 Getting Started
 
-To get a local copy up and running, follow these simple steps.
-
 ### Prerequisites
 
--   Node.js (v18 or later)
--   npm
--   Docker and Docker Compose
--   A Google Cloud account with the **Cloud Vision API** enabled and a **Service Account JSON key**.
+- Node.js (v18 or later)
+- npm
+- Docker and Docker Compose
+- Google Cloud account with:
+  - **Cloud Vision API** enabled
+  - **Cloud Storage** bucket created
+  - **Service Account JSON key**
 
 ### Installation & Setup
 
-1.  **Clone the repository:**
-    ```sh
-    git clone [https://github.com/your-username/ai-cloud-storage.git](https://github.com/your-username/ai-cloud-storage.git)
-    cd ai-cloud-storage
-    ```
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/your-username/ai-cloud-storage.git
+   cd ai-cloud-storage
+   ```
 
-2.  **Setup Google Cloud Credentials:**
-    -   Place your downloaded Google Cloud Service Account `.json` file into the `backend/` directory.
-    -   **IMPORTANT:** Add the name of your `.json` file to the `.gitignore` file in the project root to prevent committing your secrets.
-        ```
-        # .gitignore
-        your-service-account-file.json
-        ```
-    -   Update `backend/worker.js` to point to your key file:
-        ```javascript
-        const client = new vision.ImageAnnotatorClient({
-            keyFilename: './your-service-account-file.json' // Use your actual filename
-        });
-        ```
+2. **Create a Google Cloud Storage Bucket:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/storage)
+   - Create a new bucket (e.g., `ai-cloud-storage-files`)
+   - Set region to your preferred location
+   - Grant your service account `Storage Object Admin` role
 
-3.  **Start Background Services:**
-    Launch the PostgreSQL and Redis containers using Docker.
-    ```sh
-    docker-compose up -d
-    ```
+3. **Setup Google Cloud Credentials:**
+   - Place your Service Account `.json` file in the `backend/` directory
+   - Update the filename in these files:
+     - `backend/storage.js` - line 7
+     - `backend/worker.js` - lines 12 and 16
+   - Update bucket name in `backend/storage.js` - line 11
+   - **IMPORTANT:** Ensure your `.json` file is in `.gitignore`
 
-4.  **Setup the Backend:**
-    -   Navigate to the backend directory: `cd backend`
-    -   Install dependencies: `npm install`
-    -   Initialize the database table: `node init-db.js`
-    -   Start the API server (in one terminal): `node index.js`
-    -   Start the AI worker (in a *second* terminal): `node worker.js`
+4. **Start Background Services:**
+   ```sh
+   docker-compose up -d
+   ```
 
-5.  **Setup the Frontend:**
-    -   Navigate to the frontend directory (in a *third* terminal): `cd ../frontend`
-    -   Install dependencies: `npm install`
-    -   Start the development server: `npm run dev`
+5. **Setup the Backend:**
+   ```sh
+   cd backend
+   npm install
+   node init-db.js
+   node index.js        # Terminal 1 - API Server
+   node worker.js       # Terminal 2 - AI Worker
+   ```
 
-6.  **Open the application:**
-    Navigate to `http://localhost:5173` in your web browser.
+6. **Setup the Frontend:**
+   ```sh
+   cd frontend
+   npm install
+   npm run dev          # Terminal 3
+   ```
+
+7. **Open the application:**
+   Navigate to `http://localhost:5173`
+
+---
+
+## � Project Structure
+
+```
+ai-cloud-storage/
+├── backend/
+│   ├── index.js        # Express API server
+│   ├── worker.js       # AI analysis worker
+│   ├── storage.js      # Google Cloud Storage module
+│   ├── queue.js        # Redis/BullMQ queue
+│   ├── db.js           # PostgreSQL connection
+│   ├── init-db.js      # Database schema setup
+│   └── uploads/        # Temporary upload directory
+├── frontend/
+│   └── src/
+│       ├── App.jsx     # Main React component
+│       ├── App.css     # Component styles
+│       └── index.css   # Global styles & themes
+└── docker-compose.yml  # PostgreSQL & Redis
+```
 
 ---
 
 ## 🔮 Future Improvements
 
--   **Display AI Tags:** Show the generated AI tags as badges next to each file in the UI.
--   **Search by Tag:** Implement a search bar to filter files based on their AI tags.
--   **User Authentication:** Add user accounts so each user has their own private storage space.
--   **Folder Management:** Allow users to create and organize files into folders.
+- **User Authentication** - Add user accounts for private storage
+- **Folder Management** - Organize files into directories
+- **Bulk Operations** - Select and manage multiple files
+- **Image Editing** - Crop, rotate, and filter images
+- **Mobile App** - React Native version
+
+---
+
+## 📄 License
+
+This project is open source and available under the MIT License.
